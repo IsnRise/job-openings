@@ -117,9 +117,9 @@ def make_superjob_languages_rate(superjob_secret_key, languages):
         vacancies_sj = get_vacancies_superjob(superjob_secret_key, language)
         vacancies_count, average_salary = get_superjob_payment(vacancies_sj)
         languages_rate_sj[language] = {
-            "vacancies_found" : len(vacancies_sj),
+            "vacancies_found" : vacancies_sj,
             "vacancies_processed" : vacancies_count,
-            "average_salary" : int(average_salary)
+            "average_salary" : average_salary
         }       
     return languages_rate_sj
 
