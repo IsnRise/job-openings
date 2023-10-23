@@ -1,4 +1,4 @@
-import requests 
+import requests
 import os
 from dotenv import load_dotenv
 from terminaltables import AsciiTable
@@ -9,15 +9,18 @@ from contextlib import suppress
 def get_headhunter_salary(vacancies):
     total_salary = 0
     vacancies_count = 0
-    for vacancy in vacancies:  
+    for vacancy in vacancies:
         payment = vacancy.get("salary")
         if payment:
+            if not ('from' in payment and 'to' in payment):
+                return
             salary_from = payment['from']
             salary_to = payment['to']
             salary = predict_rub_salary(salary_from, salary_to)
-            if salary:
-                total_salary += salary
-                vacancies_count += 1
+            if not salary:
+                return
+            total_salary += salary
+            vacancies_count += 1
     average_salary = 0
     if vacancies_count:
         average_salary = total_salary / vacancies_count
@@ -83,9 +86,10 @@ def get_vacancies_superjob(superjob_secret_key, language):
 def get_vacancies_headhunter(language):
     hh_url = "https://api.hh.ru/vacancies"
     vacancies_hh = []
+    MOSCOW = "1"
     params = {
         "text" : f"Программист {language}",
-        "area" : "1",
+        "area" : MOSCOW,
         "cuurency" : "RUR"
     }
     for page in count(0):
@@ -98,7 +102,7 @@ def get_vacancies_headhunter(language):
             if page >= response['pages']:
                 break
     return vacancies_hh
-        
+
 
 def make_table(languages, languages_rate, table_name):
     full_table = [["Язык программирования", "Вакансий найдено", "Вакансий обработано", "Средняя зарплата"]]
@@ -113,24 +117,24 @@ def make_table(languages, languages_rate, table_name):
 
 def make_superjob_languages_rate(superjob_secret_key, languages):
     languages_rate_sj = {}
-    for language in languages:   
-        vacancies_sj = get_vacancies_superjob(superjob_secret_key, language)
-        vacancies_count, average_salary = get_superjob_payment(vacancies_sj)
+    for language in languages:
+        total_vacancies_sj = get_vacancies_superjob(superjob_secret_key, language)
+        vacancies_count, average_salary = get_superjob_payment(total_vacancies_sj)
         languages_rate_sj[language] = {
-            "vacancies_found" : vacancies_sj,
+            "vacancies_found" : total_vacancies_sj,
             "vacancies_processed" : vacancies_count,
-            "average_salary" : average_salary
-        }       
+            "average_salary" : int(average_salary)
+        }
     return languages_rate_sj
 
 
 def make_headhunter_languages_rate(languages):
-    languages_rate_hh = {}   
+    languages_rate_hh = {}
     for language in languages:
-        vacancies_hh = get_vacancies_headhunter(language)
-        vacancies_count, average_salary = get_headhunter_salary(vacancies_hh)
+        total_vacancies_hh = get_vacancies_headhunter(language)
+        vacancies_count, average_salary = get_headhunter_salary(total_vacancies_hh)
         languages_rate_hh[language] = {
-            "vacancies_found" : len(vacancies_hh),
+            "vacancies_found" : total_vacancies_hh,
             "vacancies_processed" : vacancies_count,
             "average_salary" : int(average_salary)
         }
@@ -139,7 +143,7 @@ def make_headhunter_languages_rate(languages):
 
 def main():
     load_dotenv()
-    superjob_secret_key = os.environ["SUPERJOB_SECRET_KEY"]    
+    superjob_secret_key = os.environ["SUPERJOB_SECRET_KEY"]
     languages = ["JavaScript", "Java", "Python", "PHP", "C++", "C#", "C", "Go"]
     languages_rate_sj = make_superjob_languages_rate(superjob_secret_key, languages)
     languages_rate_hh = make_headhunter_languages_rate(languages)
